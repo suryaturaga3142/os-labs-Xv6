@@ -60,6 +60,43 @@ main(int argc, char *argv[])
 void
 memdump(char *fmt, char *data)
 {
-  // Your code here.
+    while (*fmt != '\0') {
+        switch (*fmt) {
+            case 'i': 
+                printf("%d\n", *(int*) data);
+                data += 4;
+                break;
+            case 'p': 
+                printf("%lx\n", *(uint64*) data);
+                data += 8;
+                break;
+            case 'h':
+                printf("%d\n", *(short*) data);
+                data += 2;
+                break;
+            case 'c':
+                printf("%c\n", *data);
+                data++;
+                break;
+            case 's':
+                printf("%s\n", *(char**) data);
+                data += 8;
+                break;
+            case 'S':
+                printf("%s\n", data);
+                return;
+        }
+        fmt++;
+    }
+    return;
 
 }
+/*
+i: print the next 4 bytes of the data as a 32-bit integer, in decimal.
+p: print the next 8 bytes of the data as a 64-bit integer, in hex.
+h: print the next 2 bytes of the data as a 16-bit integer, in decimal.
+c: print the next 1 byte of the data as an 8-bit ASCII character.
+s: the next 8 bytes of the data contain a 64-bit pointer to a C string; print the string.
+S: the rest of the data contains the bytes of a null-terminated C string; print the string.
+*/
+

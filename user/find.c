@@ -4,32 +4,10 @@
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
 
-char*
-fmtname(char *path)
-{
-  static char buf[DIRSIZ+1];
-  char *p;
-
-  // Find first character after last slash.
-  for(p=path+strlen(path); p >= path && *p != '/'; p--)
-    ;
-  p++;
-
-  // Return blank-padded name.
-  if(strlen(p) >= DIRSIZ)
-    return p;
-  memmove(buf, p, strlen(p));
-  memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
-  buf[sizeof(buf)-1] = '\0';
-  return buf;
-}
-
-
-void find(char* path) {
-    char buf[512], *p;
+void find(char* path, char* key) {
     int fd;
-    struct dirent de;
     struct stat st;
+    struct dirent de;
 
     if((fd = open(path, O_RDONLY)) < 0){
         fprintf(2, "find: cannot open %s\n", path);
@@ -41,40 +19,51 @@ void find(char* path) {
         return;
     }
 
+    char *filename = path + strlen(path);
+    while (filename > path && *(filename - 1) != '/') {
+        filename--;
+    }
+    if (strcmp(filename, key) == 0) {
+        printf("%s\n", path);
+    }
+
     switch (st.type) {
         case T_DEVICE:
-        case T_FILE:
-            printf("%s\n", path);
+        case T_FILE: {
+            char *p;
+            // Scan backwards until we hit a '/' or the start of the string
+            for(p = path + strlen(path); p >= path && *p != '/'; p--)
+                ;
+            p++;
             break;
+        }
         case T_DIR:
-            if (strcmp(".\0", fmtname(path)) == 0 || strcmp("..\0", fmtname(path)) == 0) break;
-            if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
-                printf("ls: path too long\n");
-                break;
-            }
-            strcpy(buf, path);
-            p = buf+strlen(buf);
-            *p++ = '/';
-            while(read(fd, &de, sizeof(de)) == sizeof(de)) {
-                if(de.inum == 0) continue;
+            while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+                if (de.inum == 0) continue;
+                if (strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0) continue;
+                char newpath[512];
+                strcpy(newpath, path);
+
+                char *p = newpath + strlen(newpath);
+                *p++ = '/';
+
                 memmove(p, de.name, DIRSIZ);
                 p[DIRSIZ] = 0;
-                if(stat(buf, &st) < 0) {
-                    printf("ls: cannot stat %s\n", buf);
-                    continue;
-                }
-                find(buf);
+
+                find(newpath, key);
             }
-            break;
     }
+    
     close(fd);
     return;
 }
 
 int main (int argc, char* argv[]) {
 
-    if (argc <= 1) find(".");
-    else for (int i = 1; i < argc; i++) find(argv[i]);
-
-    return(0);
+    if (argc != 3) {
+        fprintf(2, "Usage: find <dir> <key>\n");
+        exit (1);
+    }
+    find(argv[1], argv[2]);
+    exit(0);
 }
