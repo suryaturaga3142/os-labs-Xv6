@@ -19,14 +19,6 @@ void find(char* path, char* key) {
         return;
     }
 
-    char *filename = path + strlen(path);
-    while (filename > path && *(filename - 1) != '/') {
-        filename--;
-    }
-    if (strcmp(filename, key) == 0) {
-        printf("%s\n", path);
-    }
-
     switch (st.type) {
         case T_DEVICE:
         case T_FILE: {
@@ -34,6 +26,14 @@ void find(char* path, char* key) {
             for(p = path + strlen(path); p >= path && *p != '/'; p--)
                 ;
             p++;
+            char *filename = path + strlen(path);
+            while (filename > path && *(filename - 1) != '/') {
+                filename--;
+            }
+            if (strcmp(filename, key) == 0) {
+                printf("%s\n", path);
+            }
+
             break;
         }
         case T_DIR:
