@@ -31,7 +31,6 @@ void find(char* path, char* key) {
         case T_DEVICE:
         case T_FILE: {
             char *p;
-            // Scan backwards until we hit a '/' or the start of the string
             for(p = path + strlen(path); p >= path && *p != '/'; p--)
                 ;
             p++;
@@ -60,7 +59,7 @@ void find(char* path, char* key) {
 
 int main (int argc, char* argv[]) {
 
-    if (argc != 3) {
+    if (argc < 3) {
         fprintf(2, "Usage: find <dir> <key>\n");
         exit (1);
     }
