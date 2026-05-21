@@ -4,7 +4,9 @@
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
 
-void find(char* path, char* key) {
+bool to_exec = false;
+
+void find(char* path, char* key, int cut_argc, char* cut_argv[]) {
     int fd;
     struct stat st;
     struct dirent de;
@@ -22,18 +24,25 @@ void find(char* path, char* key) {
     switch (st.type) {
         case T_DEVICE:
         case T_FILE: {
-            char *p;
-            for(p = path + strlen(path); p >= path && *p != '/'; p--)
-                ;
-            p++;
             char *filename = path + strlen(path);
-            while (filename > path && *(filename - 1) != '/') {
-                filename--;
-            }
-            if (strcmp(filename, key) == 0) {
-                printf("%s\n", path);
-            }
+            while (filename > path && *(filename - 1) != '/') filename--;
 
+            if (strcmp(filename, key) == 0) {
+                if (to_exec) {
+                    int pid = fork();
+                    if (pid == 0) {
+                        char* exec_argv[32];
+                        for (int i = 0; i < cut_argc; i++) exec_argv[i] = cut_argv[i];
+                        exec_argv[cut_argc] = path;
+                        exec_argv[cut_argc + 1] = 0;
+                        exec(exec_argv[0], exec_argv);
+                    }
+                    else {
+                        wait(0);
+                    }
+                }
+                else printf("%s\n", path);
+            }
             break;
         }
         case T_DIR:
@@ -49,7 +58,7 @@ void find(char* path, char* key) {
                 memmove(p, de.name, DIRSIZ);
                 p[DIRSIZ] = 0;
 
-                find(newpath, key);
+                find(newpath, key, cut_argc, cut_argv);
             }
     }
     
@@ -60,9 +69,21 @@ void find(char* path, char* key) {
 int main (int argc, char* argv[]) {
 
     if (argc < 3) {
-        fprintf(2, "Usage: find <dir> <key>\n");
+        fprintf(2, "Usage: find <dir> <key> [-exec <cmd>]\n");
         exit (1);
     }
-    find(argv[1], argv[2]);
+    if (argc == 4) {
+        fprintf(2, "Usage: find <dir> <key> [-exec <cmd>]\n");
+        exit (1);
+    }
+    if (argc > 4) {
+        if (strcmp("-exec", argv[3]) == 0) to_exec = true;
+        else {
+            fprintf(2, "Usage: find <dir> <key> [-exec <cmd>]\n");
+            exit (1);
+        }
+    }
+
+    find(argv[1], argv[2], argc - 4, &(argv[4]));
     exit(0);
 }
