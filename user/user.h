@@ -2,6 +2,7 @@
 
 struct stat;
 
+int interpose(int, char*);
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));
