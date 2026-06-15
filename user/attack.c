@@ -3,10 +3,20 @@
 #include "user/user.h"
 #include "kernel/riscv.h"
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  // Your code here.
+    int size = 8 * 4096;
+    char* buf = (char*) sbrk(size);
 
-  exit(1);
+    char* cmp = "This may help.";
+
+    for (char* cursor = buf; cursor < buf + size - 16; cursor++) {
+        if (strcmp(cursor, cmp) == 0) {
+            printf("%s\n", cursor + 16);
+            exit(0);
+        }
+    }
+
+    exit(1);
 }
+
