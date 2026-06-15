@@ -300,6 +300,7 @@ kfork(void)
   release(&np->lock);
 
   np->mask = p->mask;
+  memmove(np->path_buf, p->path_buf, MAXPATH);
 
   return pid;
 }

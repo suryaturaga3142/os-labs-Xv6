@@ -86,6 +86,7 @@ struct proc {
   struct spinlock lock;
 
   int mask;
+  char path_buf[MAXPATH];
 
   // p->lock must be held when using these:
   enum procstate state;        // Process state

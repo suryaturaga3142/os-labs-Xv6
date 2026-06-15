@@ -110,5 +110,6 @@ uint64
 sys_interpose(void)
 {
     argint(0, &(myproc()->mask));
+    argstr(1, myproc()->path_buf, MAXPATH);
     return 0;
 }
