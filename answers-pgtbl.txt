@@ -1,0 +1,2 @@
+Virtual addr, page table entry (actual struct), physical address, permission bits
+
