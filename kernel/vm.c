@@ -236,13 +236,13 @@ int mapsuperpages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int 
     pte_t *pte;
 
     if((va % SUPERPGSIZE) != 0)
-        panic("mappages: va not aligned");
+        panic("mapsuperpages: va not aligned");
 
     if((size % SUPERPGSIZE) != 0)
-        panic("mappages: size not aligned");
+        panic("mapsuperpages: size not aligned");
 
     if(size == 0)
-        panic("mappages: size");
+        panic("mapsuperpages: size");
   
 
     // Get the L2 PTE
@@ -291,23 +291,24 @@ uvmcreate()
 void
 uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
-  uint64 a;
-  pte_t *pte;
-  int sz = PGSIZE;
+    uint64 a;
+    pte_t *pte;
+    int sz = PGSIZE;
 
-  if((va % PGSIZE) != 0)
-    panic("uvmunmap: not aligned");
+    if((va % PGSIZE) != 0)
+        panic("uvmunmap: not aligned");
 
-  for(a = va; a < va + npages*PGSIZE; a += sz){
-    if((pte = walk(pagetable, a, 0)) == 0) { // leaf page table entry allocated?
-      sz = PGSIZE;
-      continue;
-    }
-    if((*pte & PTE_V) == 0) { // has physical page been allocated?
-      sz = PGSIZE;
-      continue;
-    }
-    //sz = PGSIZE;
+    for(a = va; a < va + npages*PGSIZE; a += sz){
+        if((pte = walk(pagetable, a, 0)) == 0) { // leaf page table entry allocated?
+            sz = PGSIZE;
+            continue;
+        }
+        if((*pte & PTE_V) == 0) { // has physical page been allocated?
+            sz = PGSIZE;
+            continue;
+        }
+        //sz = PGSIZE;
+        //pagetable_t l1_dir = (pagetable_t)PTE2PA(pagetable[PX(2, a)]);
     
         if(PTE_LEAF(*pte)) {
             uint64 unmap_end = va + npages * PGSIZE;
@@ -349,14 +350,15 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             }
         }
 
-    if(PTE_FLAGS(*pte) == PTE_V)
-      panic("uvmunmap: not a leaf");
-    if(do_free){
-      uint64 pa = PTE2PA(*pte);
-      kfree((void*)pa);
+        if(PTE_FLAGS(*pte) == PTE_V) {
+            panic("uvmunmap: not a leaf");
+        }
+        if(do_free){
+            uint64 pa = PTE2PA(*pte);
+            kfree((void*)pa);
+        }
+        *pte = 0;
     }
-    *pte = 0;
-  }
 }
 
 

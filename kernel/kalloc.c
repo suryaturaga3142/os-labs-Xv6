@@ -40,7 +40,7 @@ freerange(void *pa_start, void *pa_end)
     kfree(p);
 
   p = (char*) SUPERPGROUNDUP((uint64) p);
-  for(; p + SUPERPGSIZE <= (char*)pa_end; p+= PGSIZE)
+  for(; p + SUPERPGSIZE <= (char*)pa_end; p+= SUPERPGSIZE)
       ksuperfree(p);
 }
 
