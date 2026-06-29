@@ -138,7 +138,7 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
   pa = PTE2PA(*pte);
 
-  if (PTE_LEAF(*pte)) pa += (va & (SUPERPGSIZE - 1)); // Added
+  //if (PTE_LEAF(*pte)) pa += (va & (SUPERPGSIZE - 1)); // Added
 
   return pa;
 }
@@ -230,9 +230,9 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   return 0;
 }
 
-
 // Added: mapping superpages
 int mapsuperpages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm) {
+    uint64 a, last;
     pte_t *pte;
 
     if((va % SUPERPGSIZE) != 0)
@@ -243,31 +243,20 @@ int mapsuperpages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int 
 
     if(size == 0)
         panic("mapsuperpages: size");
-  
 
-    // Get the L2 PTE
-    pte_t *pte2 = &pagetable[PX(2, va)];
-
-    // Check if the L1 directory exits yet
-    if((*pte2 & PTE_V) == 0) {
-        // No L1 table exists here
-        pagetable_t new_l1 = (pagetable_t)kalloc();
-        if(new_l1 == 0) return -1;
-            memset(new_l1, 0, PGSIZE);
-
-        // Wire the new L1 table into the L2 slot
-        *pte2 = PA2PTE(new_l1) | PTE_V;
+    a = va;
+    last = va + size - SUPERPGSIZE;
+    for(;;){
+        if((pte = superwalk(pagetable, a, 1)) == 0)
+            return -1;
+        if(*pte & PTE_V)
+            panic("mapsuperpages: remap");
+        *pte = PA2PTE(pa) | perm | PTE_V;
+        if(a == last)
+            break;
+        a += SUPERPGSIZE;
+        pa += SUPERPGSIZE;
     }
-
-    pagetable = (pagetable_t)PTE2PA(*pte2);
-    pte = &pagetable[PX(1, va)]; // Get L1 PTE
-
-    if(*pte & PTE_V)
-        panic("mapsuperpages: remap");
-
-    // Set as a leaf superpage
-    *pte = PA2PTE(pa) | perm | PTE_V;
-
     return 0;
 
 }
@@ -308,9 +297,10 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             continue;
         }
         //sz = PGSIZE;
-        //pagetable_t l1_dir = (pagetable_t)PTE2PA(pagetable[PX(2, a)]);
+        pagetable_t l1_dir = (pagetable_t)PTE2PA(pagetable[PX(2, a)]);
     
-        if(PTE_LEAF(*pte)) {
+        if(pte == &l1_dir[PX(1, a)]) {
+        //if(PTE_LEAF(*pte)) {
             uint64 unmap_end = va + npages * PGSIZE;
             uint64 super_base = SUPERPGROUNDDOWN(a);
       
@@ -471,24 +461,25 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
-  pte_t *pte;
-  uint64 pa, i;
-  uint flags;
-  char *mem;
-  //int szinc = PGSIZE;
-  int szinc;
+    pte_t *pte;
+    uint64 pa, i;
+    uint flags;
+    char *mem;
+    //int szinc = PGSIZE;
+    int szinc;
 
-  for(i = 0; i < sz; i += szinc){
-    if((pte = walk(old, i, 0)) == 0)
-        szinc = PGSIZE;
-      continue;
-    if((*pte & PTE_V) == 0) {
-        szinc = PGSIZE;
-      continue;
-    }
-    //szinc = PGSIZE;
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
+    for(i = 0; i < sz; i += szinc){
+        if((pte = walk(old, i, 0)) == 0) {
+            szinc = PGSIZE;
+            continue;
+        }
+        if((*pte & PTE_V) == 0) {
+            szinc = PGSIZE;
+            continue;
+        }
+        //szinc = PGSIZE;
+        pa = PTE2PA(*pte);
+        flags = PTE_FLAGS(*pte);
 
         // Added
         if(PTE_LEAF(*pte)) {
@@ -512,12 +503,12 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
                 goto err;
             }
         }
-  }
-  return 0;
+    }
+    return 0;
 
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
+    err:
+        uvmunmap(new, 0, i / PGSIZE, 1);
+        return -1;
 }
 
 // mark a PTE invalid for user access.
