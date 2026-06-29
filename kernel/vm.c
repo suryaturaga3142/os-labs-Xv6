@@ -401,32 +401,29 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
     for(a = oldsz; a < newsz; a += sz){
         // Prioritize a 2MB superpage allocation if space allows it
         if (a == SUPERPGROUNDUP(a) && newsz - a >= SUPERPGSIZE) {
-            sz = SUPERPGSIZE;
             mem = (char*)ksuperalloc();
-            if(mem == 0){
-                uvmdealloc(pagetable, a, oldsz);
-                return 0;
+            if (mem != 0) {
+                sz = SUPERPGSIZE;
+                memset(mem, 0, sz);
+                if(mapsuperpages(pagetable, a, sz, (uint64)mem, PTE_R|PTE_U|xperm) == 0){
+                    continue;
+                }
+                ksuperfree(mem); // To fall thru
             }
-            memset(mem, 0, sz);
-            if(mapsuperpages(pagetable, a, sz, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-                ksuperfree(mem);
-                uvmdealloc(pagetable, a, oldsz);
-                return 0;
-            }
-        } else {
-            // Unmodified section
-            sz = PGSIZE;
-            mem = kalloc();
-            if(mem == 0){
-                uvmdealloc(pagetable, a, oldsz);
-                return 0;
-            }
-            memset(mem, 0, sz);
-            if(mappages(pagetable, a, sz, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-                kfree(mem);
-                uvmdealloc(pagetable, a, oldsz);
-                return 0;
-            }
+        }
+
+        // Unmodified section
+        sz = PGSIZE;
+        mem = kalloc();
+        if(mem == 0){
+            uvmdealloc(pagetable, a, oldsz);
+            return 0;
+        }
+        memset(mem, 0, sz);
+        if(mappages(pagetable, a, sz, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
+            kfree(mem);
+            uvmdealloc(pagetable, a, oldsz);
+            return 0;
         }
     }
     return newsz;
